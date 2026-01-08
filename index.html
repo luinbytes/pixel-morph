@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pixel Morph - Obama Edition</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+
+<body>
+    <div class="container">
+        <header>
+            <h1>Pixel Morph</h1>
+            <p class="subtitle">Draw anything. Watch it become Obama.</p>
+        </header>
+
+        <div class="canvas-wrapper">
+            <canvas id="mainCanvas"></canvas>
+            <div class="canvas-glow"></div>
+        </div>
+
+        <div class="info-bar">
+            <span id="pixelCount">Pixels: 0</span>
+            <span id="morphProgress">Morphed: 0%</span>
+        </div>
+
+        <div class="controls">
+            <div class="control-group">
+                <label>Brush Color</label>
+                <div class="color-picker-wrapper">
+                    <input type="color" id="brushColor" value="#ff6b6b">
+                </div>
+            </div>
+
+            <div class="control-group">
+                <label>Brush Density</label>
+                <input type="range" id="brushDensity" min="1" max="100" value="20">
+                <span id="brushDensityValue">20 px/move</span>
+            </div>
+
+            <div class="control-group">
+                <label>Resolution</label>
+                <input type="range" id="resolution" min="1" max="20" value="2" step="1">
+                <span id="resolutionValue">High</span>
+            </div>
+
+
+
+        </div>
+
+        <div class="button-group">
+            <button id="uploadBtn" class="btn btn-secondary">
+                <span class="btn-icon">📁</span>
+                Upload Image
+            </button>
+            <input type="file" id="imageUpload" accept="image/*" hidden>
+
+            <div class="control-group checkbox-group">
+                <input type="checkbox" id="randomPixels">
+                <label for="randomPixels">Random Pixel Colors</label>
+            </div>
+
+            <div class="control-group checkbox-group">
+                <input type="checkbox" id="cycleColor">
+                <label for="cycleColor">Cycle Color on Release</label>
+            </div>
+
+            <div class="control-group checkbox-group" id="favorColorsContainer" style="display: none;">
+                <input type="checkbox" id="favorColors">
+                <label for="favorColors">Favor original colors</label>
+            </div>
+
+            <button id="clearBtn" class="clear-btn">Clear Canvas</button>
+        </div>
+    </div>
+
+
+    </div>
+
+    <script src="app.js"></script>
+</body>
+
+</html>

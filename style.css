@@ -45,18 +45,157 @@ h1 {
     font-weight: 400;
 }
 
+/* Help Tooltip */
+.help-tooltip {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: rgba(20, 20, 35, 0.98);
+    backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 20px;
+    padding: 32px;
+    max-width: 400px;
+    width: 90%;
+    z-index: 1000;
+    box-shadow: 0 25px 50px rgba(0, 0, 0, 0.5), 0 0 100px rgba(102, 126, 234, 0.2);
+    animation: fadeInScale 0.3s ease-out;
+}
+
+.help-tooltip.hidden {
+    display: none;
+}
+
+@keyframes fadeInScale {
+    from {
+        opacity: 0;
+        transform: translate(-50%, -50%) scale(0.9);
+    }
+
+    to {
+        opacity: 1;
+        transform: translate(-50%, -50%) scale(1);
+    }
+}
+
+.help-tooltip h3 {
+    font-size: 1.4rem;
+    margin-bottom: 16px;
+    background: linear-gradient(135deg, #667eea, #f093fb);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.help-tooltip ul {
+    list-style: none;
+    margin-bottom: 24px;
+}
+
+.help-tooltip li {
+    padding: 8px 0;
+    color: rgba(255, 255, 255, 0.8);
+    font-size: 0.95rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.help-tooltip li:last-child {
+    border-bottom: none;
+}
+
+.help-tooltip li strong {
+    color: #a8d8ea;
+}
+
+.help-close {
+    position: absolute;
+    top: 16px;
+    right: 16px;
+    background: none;
+    border: none;
+    color: rgba(255, 255, 255, 0.5);
+    font-size: 1.5rem;
+    cursor: pointer;
+    transition: color 0.2s;
+}
+
+.help-close:hover {
+    color: #fff;
+}
+
+.btn-primary {
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    color: #fff;
+    border: none;
+    padding: 12px 32px;
+    border-radius: 10px;
+    font-family: inherit;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    width: 100%;
+}
+
+.btn-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 30px rgba(102, 126, 234, 0.4);
+}
+
+/* Overlay for help tooltip */
+.help-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.6);
+    z-index: 999;
+}
+
+.help-overlay.hidden {
+    display: none;
+}
+
 .canvas-wrapper {
     position: relative;
     border-radius: 16px;
-    overflow: hidden;
+    overflow: visible;
 }
 
 #mainCanvas {
     display: block;
     background: #0d0d12;
     border-radius: 16px;
-    cursor: crosshair;
+    cursor: none;
     touch-action: none;
+}
+
+/* Brush Cursor Preview */
+.brush-cursor {
+    position: absolute;
+    pointer-events: none;
+    border: 2px solid rgba(255, 255, 255, 0.6);
+    border-radius: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 100;
+    opacity: 0;
+    transition: opacity 0.15s ease, width 0.1s ease, height 0.1s ease;
+    box-shadow: 0 0 10px rgba(102, 126, 234, 0.3);
+}
+
+.canvas-wrapper:hover .brush-cursor {
+    opacity: 1;
+}
+
+.brush-cursor::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 4px;
+    height: 4px;
+    background: rgba(255, 255, 255, 0.8);
+    border-radius: 50%;
+    transform: translate(-50%, -50%);
 }
 
 .canvas-glow {
@@ -80,6 +219,96 @@ h1 {
     50% {
         background-position: 100% 50%;
     }
+}
+
+/* Progress Bar */
+.progress-container {
+    width: 100%;
+    max-width: 600px;
+    height: 8px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 10px;
+    overflow: hidden;
+    position: relative;
+    margin-top: -12px;
+}
+
+.progress-bar {
+    height: 100%;
+    width: 0%;
+    background: linear-gradient(90deg, #667eea, #764ba2, #f093fb);
+    background-size: 200% 100%;
+    animation: progressGradient 2s ease-in-out infinite;
+    border-radius: 10px;
+    transition: width 0.3s ease;
+}
+
+@keyframes progressGradient {
+
+    0%,
+    100% {
+        background-position: 0% 50%;
+    }
+
+    50% {
+        background-position: 100% 50%;
+    }
+}
+
+.progress-label {
+    position: absolute;
+    right: 0;
+    top: 12px;
+    font-size: 0.75rem;
+    color: rgba(255, 255, 255, 0.5);
+    font-variant-numeric: tabular-nums;
+}
+
+/* Color Presets */
+.color-presets {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 20px;
+    background: rgba(255, 255, 255, 0.05);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 12px;
+}
+
+.preset-label {
+    font-size: 0.8rem;
+    color: rgba(255, 255, 255, 0.6);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    white-space: nowrap;
+}
+
+.preset-colors {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.color-preset {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    border: 2px solid rgba(255, 255, 255, 0.2);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    position: relative;
+}
+
+.color-preset:hover {
+    transform: scale(1.15);
+    border-color: rgba(255, 255, 255, 0.5);
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+}
+
+.color-preset.active {
+    border-color: #fff;
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.5);
 }
 
 .controls {
@@ -280,9 +509,29 @@ input[type="range"]::-moz-range-thumb {
     font-size: 0.85rem;
     color: rgba(255, 255, 255, 0.6);
     font-variant-numeric: tabular-nums;
-    margin-top: -12px;
-    margin-bottom: 20px;
     z-index: 10;
+}
+
+.morph-status {
+    color: #4ecdc4;
+    font-weight: 500;
+}
+
+.morph-status.morphing {
+    color: #f093fb;
+    animation: pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse {
+
+    0%,
+    100% {
+        opacity: 1;
+    }
+
+    50% {
+        opacity: 0.6;
+    }
 }
 
 @media (max-width: 600px) {
@@ -302,5 +551,96 @@ input[type="range"]::-moz-range-thumb {
     .button-group {
         width: 100%;
         justify-content: center;
+    }
+
+    .color-presets {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .preset-colors {
+        justify-content: center;
+    }
+
+    .help-tooltip {
+        padding: 24px;
+        max-height: 80vh;
+        overflow-y: auto;
+    }
+
+    .info-bar {
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 12px;
+    }
+
+    .canvas-wrapper {
+        max-width: 100%;
+    }
+
+    #mainCanvas {
+        max-width: 100%;
+        height: auto;
+    }
+}
+
+/* Status indicators */
+.morph-status.drawing {
+    color: #fbbf24;
+}
+
+.morph-status.waiting {
+    color: #60a5fa;
+}
+
+.morph-status.complete {
+    color: #34d399;
+}
+
+/* Keyboard shortcut hints in help */
+.help-tooltip h4 {
+    font-weight: 500;
+}
+
+.help-tooltip li strong {
+    display: inline-block;
+    min-width: 50px;
+}
+
+/* Canvas active state glow */
+.canvas-wrapper.drawing .canvas-glow {
+    opacity: 0.9;
+    animation: glowPulse 0.5s ease-in-out infinite;
+}
+
+@keyframes glowPulse {
+
+    0%,
+    100% {
+        opacity: 0.9;
+    }
+
+    50% {
+        opacity: 0.7;
+    }
+}
+
+/* Smooth transition for progress bar */
+.progress-container {
+    transition: opacity 0.3s ease;
+}
+
+/* Touch device optimizations */
+@media (hover: none) and (pointer: coarse) {
+    .brush-cursor {
+        display: none;
+    }
+
+    .color-preset:hover {
+        transform: none;
+    }
+
+    .btn:hover {
+        transform: none;
     }
 }

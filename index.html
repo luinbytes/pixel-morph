@@ -4,7 +4,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pixel Morph - Obama Edition</title>
+    <title>Pixel Morph - Transform Your Art</title>
+    <meta name="description"
+        content="An interactive pixel art tool where your drawings transform into stunning images through physics-based particle animation.">
+    <link rel="icon"
+        href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎨</text></svg>">
     <link rel="stylesheet" href="style.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 </head>
@@ -13,17 +17,64 @@
     <div class="container">
         <header>
             <h1>Pixel Morph</h1>
-            <p class="subtitle">Draw anything. Watch it become Obama.</p>
+            <p class="subtitle">Draw freely. Watch your art transform.</p>
         </header>
+
+        <div class="help-tooltip" id="helpTooltip">
+            <button class="help-close" id="helpClose">×</button>
+            <h3>🎨 How to Use</h3>
+            <ul>
+                <li><strong>Draw</strong> anywhere on the canvas with your mouse or touch</li>
+                <li><strong>Wait 3 seconds</strong> after drawing to see particles morph</li>
+                <li><strong>Upload</strong> your own image to morph into</li>
+                <li>Adjust <strong>brush density</strong> for more/fewer particles</li>
+                <li>Try <strong>color presets</strong> or pick your own color</li>
+            </ul>
+            <h4 style="color: rgba(255,255,255,0.7); margin: 16px 0 8px; font-size: 0.9rem;">⌨️ Keyboard Shortcuts</h4>
+            <ul style="margin-bottom: 16px;">
+                <li><strong>C</strong> - Clear canvas</li>
+                <li><strong>D</strong> - Download image</li>
+                <li><strong>H</strong> - Toggle help</li>
+                <li><strong>Esc</strong> - Close this dialog</li>
+            </ul>
+            <button class="btn btn-primary" id="helpGotIt">Got it!</button>
+        </div>
 
         <div class="canvas-wrapper">
             <canvas id="mainCanvas"></canvas>
             <div class="canvas-glow"></div>
+            <!-- Brush cursor preview -->
+            <div class="brush-cursor" id="brushCursor"></div>
+        </div>
+
+        <!-- Progress Bar -->
+        <div class="progress-container">
+            <div class="progress-bar" id="progressBar"></div>
+            <span class="progress-label" id="progressLabel">0% Complete</span>
         </div>
 
         <div class="info-bar">
             <span id="pixelCount">Pixels: 0</span>
             <span id="morphProgress">Morphed: 0%</span>
+            <span class="morph-status" id="morphStatus">Ready to draw</span>
+        </div>
+
+        <!-- Color Presets -->
+        <div class="color-presets">
+            <span class="preset-label">Quick Colors:</span>
+            <div class="preset-colors" id="presetColors">
+                <button class="color-preset" data-color="#ff6b6b" style="background: #ff6b6b;" title="Coral"></button>
+                <button class="color-preset" data-color="#4ecdc4" style="background: #4ecdc4;" title="Teal"></button>
+                <button class="color-preset" data-color="#ffe66d" style="background: #ffe66d;" title="Yellow"></button>
+                <button class="color-preset" data-color="#95e1d3" style="background: #95e1d3;" title="Mint"></button>
+                <button class="color-preset" data-color="#dda0dd" style="background: #dda0dd;" title="Plum"></button>
+                <button class="color-preset" data-color="#f38181" style="background: #f38181;" title="Salmon"></button>
+                <button class="color-preset" data-color="#aa96da" style="background: #aa96da;"
+                    title="Lavender"></button>
+                <button class="color-preset" data-color="#fcbad3" style="background: #fcbad3;" title="Pink"></button>
+                <button class="color-preset" data-color="#a8d8ea" style="background: #a8d8ea;" title="Sky"></button>
+                <button class="color-preset" data-color="#ffffff" style="background: #ffffff;" title="White"></button>
+            </div>
         </div>
 
         <div class="controls">
@@ -37,7 +88,7 @@
             <div class="control-group">
                 <label>Brush Density</label>
                 <input type="range" id="brushDensity" min="1" max="100" value="20">
-                <span id="brushDensityValue">20 px/move</span>
+                <span id="brushDensityValue">20 particles/stroke</span>
             </div>
 
             <div class="control-group">
@@ -45,9 +96,6 @@
                 <input type="range" id="resolution" min="1" max="20" value="2" step="1">
                 <span id="resolutionValue">High</span>
             </div>
-
-
-
         </div>
 
         <div class="button-group">
@@ -56,6 +104,16 @@
                 Upload Image
             </button>
             <input type="file" id="imageUpload" accept="image/*" hidden>
+
+            <button id="downloadBtn" class="btn btn-secondary">
+                <span class="btn-icon">💾</span>
+                Download
+            </button>
+
+            <button id="helpBtn" class="btn btn-secondary">
+                <span class="btn-icon">❓</span>
+                Help
+            </button>
 
             <div class="control-group checkbox-group">
                 <input type="checkbox" id="randomPixels">
@@ -67,6 +125,11 @@
                 <label for="cycleColor">Cycle Color on Release</label>
             </div>
 
+            <div class="control-group checkbox-group">
+                <input type="checkbox" id="motionTrails" checked>
+                <label for="motionTrails">Motion Trails</label>
+            </div>
+
             <div class="control-group checkbox-group" id="favorColorsContainer" style="display: none;">
                 <input type="checkbox" id="favorColors">
                 <label for="favorColors">Favor original colors</label>
@@ -76,9 +139,7 @@
         </div>
     </div>
 
-
-    </div>
-
+    <script src="defaultImage.js"></script>
     <script src="app.js"></script>
 </body>
 

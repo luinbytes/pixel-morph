@@ -1,6 +1,6 @@
 /**
- * Pixel Morph - Obama Edition
- * Re-implemented with physics-based particles for smooth animation.
+ * Pixel Morph - Transform Your Art
+ * Physics-based particle animation that morphs drawings into target images.
  */
 
 class Particle {
@@ -100,6 +100,16 @@ class Particle {
     }
 }
 
+// Represents a particle that will replace another when it finishes morphing
+class ReplacementParticle extends Particle {
+    constructor(x, y, targetX, targetY, color, delay, targetSlot, particleToReplace) {
+        super(x, y, targetX, targetY, color, delay);
+        this.targetSlot = targetSlot; // The target pool slot this particle is aiming for
+        this.particleToReplace = particleToReplace; // The old particle to remove when we finish
+        this.isReplacement = true;
+    }
+}
+
 class MorphApp {
     constructor() {
         this.canvas = document.getElementById('mainCanvas');
@@ -112,6 +122,7 @@ class MorphApp {
         this.morphStartFrame = 0;
         this.frameCount = 0;
         this.morphTimeout = null;
+        this.showHelpOnStart = !localStorage.getItem('pixelMorphHelpSeen');
 
         // Controls
         this.controls = {
@@ -128,7 +139,18 @@ class MorphApp {
             favorColors: document.getElementById('favorColors'),
             favorColorsContainer: document.getElementById('favorColorsContainer'),
             pixelCount: document.getElementById('pixelCount'),
-            morphProgress: document.getElementById('morphProgress')
+            morphProgress: document.getElementById('morphProgress'),
+            morphStatus: document.getElementById('morphStatus'),
+            downloadBtn: document.getElementById('downloadBtn'),
+            helpBtn: document.getElementById('helpBtn'),
+            helpTooltip: document.getElementById('helpTooltip'),
+            helpClose: document.getElementById('helpClose'),
+            helpGotIt: document.getElementById('helpGotIt'),
+            brushCursor: document.getElementById('brushCursor'),
+            progressBar: document.getElementById('progressBar'),
+            progressLabel: document.getElementById('progressLabel'),
+            presetColors: document.getElementById('presetColors'),
+            motionTrails: document.getElementById('motionTrails')
         };
 
         this.targetPool = []; // Initialize immediately to avoid length of undefined
@@ -139,8 +161,13 @@ class MorphApp {
     async init() {
         this.setupCanvas();
         this.setupEventListeners();
-        await this.loadTargetImage('obama.jpg');
+        await this.loadTargetImage(typeof DEFAULT_IMAGE !== 'undefined' ? DEFAULT_IMAGE : 'obama.jpg');
         this.animate();
+
+        // Show help on first visit
+        if (this.showHelpOnStart) {
+            this.showHelp();
+        }
     }
 
     setupCanvas() {
@@ -158,14 +185,26 @@ class MorphApp {
         // Initial clear
         this.ctx.fillStyle = '#0d0d12';
         this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+
+        // Update brush cursor size
+        this.updateBrushCursor();
     }
 
     setupEventListeners() {
         // Drawing events
         this.canvas.addEventListener('mousedown', (e) => this.startDrawing(e));
-        this.canvas.addEventListener('mousemove', (e) => this.draw(e));
+        this.canvas.addEventListener('mousemove', (e) => {
+            this.updateBrushCursorPosition(e);
+            this.draw(e);
+        });
         this.canvas.addEventListener('mouseup', () => this.stopDrawing());
-        this.canvas.addEventListener('mouseleave', () => this.stopDrawing());
+        this.canvas.addEventListener('mouseleave', () => {
+            this.stopDrawing();
+            this.controls.brushCursor.style.opacity = '0';
+        });
+        this.canvas.addEventListener('mouseenter', () => {
+            this.controls.brushCursor.style.opacity = '1';
+        });
 
         // Touch events
         this.canvas.addEventListener('touchstart', (e) => {
@@ -180,20 +219,23 @@ class MorphApp {
 
         // Control events
         this.controls.brushDensity.addEventListener('input', () => {
-            this.controls.brushDensityValue.textContent = this.controls.brushDensity.value + ' px/move';
+            this.controls.brushDensityValue.textContent = this.controls.brushDensity.value + ' particles/stroke';
+            this.updateBrushCursor();
         });
 
         this.controls.resolution.addEventListener('input', () => {
             const val = parseInt(this.controls.resolution.value);
-            // Expanded resolution range mapping
+            // Resolution determines pixel spacing (lower = more pixels = finer detail)
             if (val <= 2) {
+                this.controls.resolutionValue.textContent = 'Ultra (slow)';
+            } else if (val <= 4) {
                 this.controls.resolutionValue.textContent = 'High';
-            } else if (val <= 5) {
+            } else if (val <= 8) {
                 this.controls.resolutionValue.textContent = 'Medium';
-            } else if (val <= 10) { // New range
+            } else if (val <= 14) {
                 this.controls.resolutionValue.textContent = 'Low';
-            } else { // Even lower
-                this.controls.resolutionValue.textContent = 'Very Low';
+            } else {
+                this.controls.resolutionValue.textContent = 'Draft';
             }
             if (this.currentImgSrc) {
                 this.loadTargetImage(this.currentImgSrc);
@@ -231,9 +273,118 @@ class MorphApp {
             }
         });
 
-        window.addEventListener('resize', () => {
-            // Logic for resizing if needed, but we have fixed size for now
+        // Download button
+        this.controls.downloadBtn.addEventListener('click', () => this.downloadCanvas());
+
+        // Help button and modal
+        this.controls.helpBtn.addEventListener('click', () => this.showHelp());
+        this.controls.helpClose.addEventListener('click', () => this.hideHelp());
+        this.controls.helpGotIt.addEventListener('click', () => this.hideHelp());
+
+        // Color presets
+        this.controls.presetColors.addEventListener('click', (e) => {
+            if (e.target.classList.contains('color-preset')) {
+                const color = e.target.dataset.color;
+                this.controls.brushColor.value = color;
+
+                // Update active state
+                document.querySelectorAll('.color-preset').forEach(btn => btn.classList.remove('active'));
+                e.target.classList.add('active');
+            }
         });
+
+        window.addEventListener('resize', () => {
+            this.updateBrushCursor();
+        });
+
+        // Keyboard shortcuts
+        document.addEventListener('keydown', (e) => {
+            // Don't trigger shortcuts if user is typing in an input
+            if (e.target.tagName === 'INPUT') return;
+
+            switch (e.key.toLowerCase()) {
+                case 'c':
+                    this.clearCanvas();
+                    break;
+                case 'd':
+                    this.downloadCanvas();
+                    break;
+                case 'h':
+                    if (this.controls.helpTooltip.classList.contains('hidden')) {
+                        this.showHelp();
+                    } else {
+                        this.hideHelp();
+                    }
+                    break;
+                case 'escape':
+                    this.hideHelp();
+                    break;
+            }
+        });
+    }
+
+    updateBrushCursor() {
+        const radius = 30; // Fixed spread radius for consistency
+        const size = radius * 2;
+        this.controls.brushCursor.style.width = size + 'px';
+        this.controls.brushCursor.style.height = size + 'px';
+    }
+
+    updateBrushCursorPosition(e) {
+        const rect = this.canvas.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
+
+        // Position cursor relative to canvas wrapper
+        this.controls.brushCursor.style.left = x + 'px';
+        this.controls.brushCursor.style.top = y + 'px';
+
+        // Update cursor color based on brush color
+        const color = this.controls.brushColor.value;
+        this.controls.brushCursor.style.borderColor = color;
+        this.controls.brushCursor.style.boxShadow = `0 0 15px ${color}40`;
+    }
+
+    showHelp() {
+        this.controls.helpTooltip.classList.remove('hidden');
+    }
+
+    hideHelp() {
+        this.controls.helpTooltip.classList.add('hidden');
+        localStorage.setItem('pixelMorphHelpSeen', 'true');
+    }
+
+    downloadCanvas() {
+        // Don't download empty canvas
+        if (this.particles.length === 0) {
+            this.controls.morphStatus.textContent = 'Draw something first!';
+            setTimeout(() => {
+                this.updateMorphStatus('Ready to draw');
+            }, 2000);
+            return;
+        }
+
+        // Create a temporary canvas to render without trails
+        const tempCanvas = document.createElement('canvas');
+        tempCanvas.width = this.canvas.width;
+        tempCanvas.height = this.canvas.height;
+        const tempCtx = tempCanvas.getContext('2d');
+
+        // Fill background
+        tempCtx.fillStyle = '#0d0d12';
+        tempCtx.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
+
+        // Draw all particles
+        this.particles.forEach(p => {
+            tempCtx.fillStyle = p.color;
+            tempCtx.fillRect(p.x, p.y, p.size, p.size);
+        });
+
+        // Create download link
+        const link = document.createElement('a');
+        link.download = `pixel-morph-${Date.now()}.png`;
+        link.href = tempCanvas.toDataURL('image/png');
+        link.click();
     }
 
     updateConditionalControls() {
@@ -319,6 +470,11 @@ class MorphApp {
                 console.log(`Loaded ${this.targetPool.length} target pixels, sorted by feature priority`);
                 resolve();
             };
+            img.onerror = () => {
+                console.error('Failed to load target image:', src);
+                // Resolve anyway to prevent hanging
+                resolve();
+            };
             img.src = src;
         });
     }
@@ -379,6 +535,9 @@ class MorphApp {
             clearTimeout(this.morphTimeout);
             this.morphTimeout = null;
         }
+        this.updateMorphStatus('Drawing...');
+        // Add visual feedback class to canvas wrapper
+        this.canvas.parentElement.classList.add('drawing');
         this.draw(e);
     }
 
@@ -387,11 +546,17 @@ class MorphApp {
 
         // Start 3s delay before morphing starts/resumes
         if (this.morphTimeout) clearTimeout(this.morphTimeout);
+        this.updateMorphStatus('Morphing in 3s...');
+
         this.morphTimeout = setTimeout(() => {
             this.isMorphing = true;
             this.morphStartFrame = this.frameCount;
             this.morphTimeout = null;
+            this.updateMorphStatus('Morphing...');
         }, 3000);
+
+        // Remove drawing visual feedback
+        this.canvas.parentElement.classList.remove('drawing');
 
         if (this.controls.cycleColor.checked) {
             const nextColor = this.getRandomColor();
@@ -400,6 +565,23 @@ class MorphApp {
             const g = Math.floor(Math.random() * 256).toString(16).padStart(2, '0');
             const b = Math.floor(Math.random() * 256).toString(16).padStart(2, '0');
             this.controls.brushColor.value = `#${r}${g}${b}`;
+        }
+    }
+
+    updateMorphStatus(status) {
+        this.controls.morphStatus.textContent = status;
+        // Remove all state classes first
+        this.controls.morphStatus.classList.remove('morphing', 'drawing', 'waiting', 'complete');
+
+        // Add appropriate class based on status
+        if (status === 'Morphing...') {
+            this.controls.morphStatus.classList.add('morphing');
+        } else if (status === 'Drawing...') {
+            this.controls.morphStatus.classList.add('drawing');
+        } else if (status.includes('3s')) {
+            this.controls.morphStatus.classList.add('waiting');
+        } else if (status === 'Complete!') {
+            this.controls.morphStatus.classList.add('complete');
         }
     }
 
@@ -470,8 +652,18 @@ class MorphApp {
 
                 const delay = Math.random() * 150;
 
+                // Safety check: ensure we found a valid target
+                if (!bestTarget) continue;
+
                 if (bestTarget.occupiedBy) {
-                    // Convergence Logic: Only update if the new color is a significantly better match
+                    // Only consider replacement if the existing particle has FINISHED morphing
+                    // This prevents removing still-moving particles
+                    if (!bestTarget.occupiedBy.morphed) {
+                        // Target is occupied by a still-morphing particle, skip it
+                        continue;
+                    }
+
+                    // Convergence Logic: Only replace if the new color is a significantly better match
                     let currentColor = pixelColor;
 
                     // "Favor Original Colors" logic: Sprinkle in original colors (50% chance)
@@ -483,7 +675,20 @@ class MorphApp {
                     const newMatch = this.colorDistance(this.parseRgbForPenalty(currentColor), { r: bestTarget.r, g: bestTarget.g, b: bestTarget.b });
 
                     if (newMatch < currentMatch * 0.9) {
-                        bestTarget.occupiedBy.updateTarget(px, py, currentColor, delay, bestTarget.x, bestTarget.y);
+                        // Create a REPLACEMENT particle that will remove the old one when it finishes
+                        const oldParticle = bestTarget.occupiedBy;
+                        const replacementParticle = new ReplacementParticle(
+                            px, py,
+                            bestTarget.x, bestTarget.y,
+                            currentColor,
+                            delay,
+                            bestTarget,
+                            oldParticle
+                        );
+                        // Mark the target as now being claimed by the replacement
+                        bestTarget.occupiedBy = replacementParticle;
+                        bestTarget.pendingReplacement = oldParticle; // Track the old particle for removal
+                        this.particles.push(replacementParticle);
                     }
                 } else {
                     let currentColor = pixelColor;
@@ -504,7 +709,21 @@ class MorphApp {
     clearCanvas() {
         this.particles = [];
         this.isMorphing = false;
+
+        // Reset target pool occupancy and pending replacements
+        this.targetPool.forEach(t => {
+            t.occupiedBy = null;
+            t.pendingReplacement = null;
+        });
+
+        // Clear any pending morph timeout
+        if (this.morphTimeout) {
+            clearTimeout(this.morphTimeout);
+            this.morphTimeout = null;
+        }
+
         this.updateStats();
+        this.updateMorphStatus('Ready to draw');
     }
 
     updateStats() {
@@ -512,17 +731,55 @@ class MorphApp {
         const morphedCount = this.particles.filter(p => p.morphed).length;
         const percent = this.particles.length > 0 ? Math.round((morphedCount / this.particles.length) * 100) : 0;
         this.controls.morphProgress.textContent = `Morphed: ${percent}%`;
+
+        // Update progress bar
+        this.controls.progressBar.style.width = percent + '%';
+        this.controls.progressLabel.textContent = `${percent}% Complete`;
+
+        // Update morph status when complete
+        if (percent === 100 && this.particles.length > 0) {
+            this.updateMorphStatus('Complete!');
+        }
     }
 
     animate() {
         this.frameCount++;
 
-        // Semi-transparent fill for motion trails / glow effect
-        this.ctx.fillStyle = 'rgba(13, 13, 18, 0.15)';
-        this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+        // Check if motion trails are enabled
+        const trailsEnabled = this.controls.motionTrails.checked;
+
+        if (trailsEnabled) {
+            // Semi-transparent fill for motion trails / glow effect
+            this.ctx.fillStyle = 'rgba(13, 13, 18, 0.15)';
+            this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+        } else {
+            // Clear canvas completely for no trails
+            this.ctx.fillStyle = '#0d0d12';
+            this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+        }
+
+        // Track particles to remove (old particles replaced by new ones)
+        const particlesToRemove = new Set();
 
         if (this.isMorphing) {
-            this.particles.forEach(p => p.update(this.frameCount, this.morphStartFrame));
+            this.particles.forEach(p => {
+                const wasMorphed = p.morphed;
+                p.update(this.frameCount, this.morphStartFrame);
+
+                // Check if a replacement particle just finished morphing
+                if (!wasMorphed && p.morphed && p.isReplacement && p.particleToReplace) {
+                    // The replacement has arrived! Remove the old particle
+                    particlesToRemove.add(p.particleToReplace);
+                    // Clear the reference
+                    p.particleToReplace = null;
+                    p.isReplacement = false;
+                }
+            });
+        }
+
+        // Remove replaced particles
+        if (particlesToRemove.size > 0) {
+            this.particles = this.particles.filter(p => !particlesToRemove.has(p));
         }
 
         this.particles.forEach(p => {

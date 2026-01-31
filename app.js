@@ -150,7 +150,10 @@ class MorphApp {
             progressBar: document.getElementById('progressBar'),
             progressLabel: document.getElementById('progressLabel'),
             presetColors: document.getElementById('presetColors'),
-            motionTrails: document.getElementById('motionTrails')
+            motionTrails: document.getElementById('motionTrails'),
+            saveStateBtn: document.getElementById('saveStateBtn'),
+            loadStateBtn: document.getElementById('loadStateBtn'),
+            clearStateBtn: document.getElementById('clearStateBtn')
         };
 
         this.targetPool = []; // Initialize immediately to avoid length of undefined
@@ -257,6 +260,11 @@ class MorphApp {
         });
 
         this.controls.clearBtn.addEventListener('click', () => this.clearCanvas());
+
+        // Save/Load state buttons
+        this.controls.saveStateBtn.addEventListener('click', () => this.saveState());
+        this.controls.loadStateBtn.addEventListener('click', () => this.loadState());
+        this.controls.clearStateBtn.addEventListener('click', () => this.clearSavedState());
 
         this.controls.uploadBtn.addEventListener('click', () => {
             this.controls.imageUpload.click();
@@ -791,6 +799,118 @@ class MorphApp {
         }
 
         requestAnimationFrame(() => this.animate());
+    }
+
+    // ===== SAVE/LOAD STATE =====
+    saveState() {
+        const state = {
+            particles: this.particles.map(p => ({
+                x: p.x,
+                y: p.y,
+                targetX: p.targetX,
+                targetY: p.targetY,
+                color: p.color,
+                delay: p.delay,
+                morphed: p.morphed,
+                vx: p.vx,
+                vy: p.vy,
+                size: p.size,
+                ease: p.ease,
+                friction: p.friction
+            })),
+            settings: {
+                brushColor: this.controls.brushColor.value,
+                brushDensity: this.controls.brushDensity.value,
+                resolution: this.controls.resolution.value,
+                randomPixels: this.controls.randomPixels.checked,
+                cycleColor: this.controls.cycleColor.checked,
+                favorColors: this.controls.favorColors.checked,
+                motionTrails: this.controls.motionTrails.checked,
+                frameDelay: this.controls.frameDelay.value
+            },
+            isMorphing: this.isMorphing,
+            currentImgSrc: this.currentImgSrc
+        };
+
+        try {
+            localStorage.setItem('pixelMorphState', JSON.stringify(state));
+            this.controls.morphStatus.textContent = 'State saved!';
+            setTimeout(() => {
+                this.updateMorphStatus(this.isMorphing ? 'Morphing...' : 'Ready to draw');
+            }, 2000);
+        } catch (e) {
+            console.error('Failed to save state:', e);
+            this.controls.morphStatus.textContent = 'Save failed - too much data';
+        }
+    }
+
+    loadState() {
+        try {
+            const savedState = localStorage.getItem('pixelMorphState');
+            if (!savedState) {
+                this.controls.morphStatus.textContent = 'No saved state found';
+                setTimeout(() => {
+                    this.updateMorphStatus('Ready to draw');
+                }, 2000);
+                return;
+            }
+
+            const state = JSON.parse(savedState);
+
+            // Restore settings
+            this.controls.brushColor.value = state.settings.brushColor;
+            this.controls.brushDensity.value = state.settings.brushDensity;
+            this.controls.resolution.value = state.settings.resolution;
+            this.controls.randomPixels.checked = state.settings.randomPixels;
+            this.controls.cycleColor.checked = state.settings.cycleColor;
+            this.controls.favorColors.checked = state.settings.favorColors;
+            this.controls.motionTrails.checked = state.settings.motionTrails;
+            this.controls.frameDelay.value = state.settings.frameDelay;
+
+            // Update labels
+            this.updateBrushDensityLabel();
+            this.updateResolutionLabel();
+
+            // Recreate particles
+            this.particles = [];
+            this.isMorphing = state.isMorphing;
+
+            state.particles.forEach(p => {
+                const particle = new Particle(p.x, p.y, p.targetX, p.targetY, p.color, p.delay);
+                particle.morphed = p.morphed;
+                particle.vx = p.vx;
+                particle.vy = p.vy;
+                particle.size = p.size;
+                particle.ease = p.ease;
+                particle.friction = p.friction;
+                this.particles.push(particle);
+            });
+
+            // Reload image if source exists
+            if (state.currentImgSrc) {
+                this.loadTargetImage(state.currentImgSrc);
+            }
+
+            this.updateStats();
+            this.controls.morphStatus.textContent = 'State loaded!';
+            setTimeout(() => {
+                this.updateMorphStatus(this.isMorphing ? 'Morphing...' : 'Ready to draw');
+            }, 2000);
+        } catch (e) {
+            console.error('Failed to load state:', e);
+            this.controls.morphStatus.textContent = 'Load failed - corrupted data';
+            setTimeout(() => {
+                this.updateMorphStatus('Ready to draw');
+            }, 2000);
+        }
+    }
+
+    clearSavedState() {
+        localStorage.removeItem('pixelMorphState');
+        this.controls.morphStatus.textContent = 'Saved state cleared';
+        setTimeout(() => {
+            this.updateMorphStatus('Ready to draw');
+        }, 2000);
     }
 }
 
